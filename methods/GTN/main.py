@@ -12,6 +12,7 @@ from utils import f1_score,accuracy
 from scripts.data_loader import data_loader
 import scipy.sparse as sp
 from sklearn.metrics import confusion_matrix
+import os
 
 def load_data(args):
     dataset, full, feats_type = args.dataset, args.full, args.feats_type
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default="ERM",
                         help='Dataset')
-    parser.add_argument('--epoch', type=int, default=400,
+    parser.add_argument('--epoch', type=int, default=1000,
                         help='Training Epochs')
     parser.add_argument('--node_dim', type=int, default=64,
                         help='Node dimension')
@@ -151,6 +152,20 @@ if __name__ == '__main__':
         best_train_f1 = 0
         best_val_f1 = 0
         best_test_f1 = 0
+        
+        # Lists to store training and validation losses
+        train_losses = []
+        val_losses = []
+
+        # Lists to store training and validation F1 scores
+        train_f1_scores = []
+        val_f1_scores = []
+
+        # Lists to store training and validation confusion matrices
+        train_conf_matrices = []
+        val_conf_matrices = []
+        
+        
         for i in range(epochs):
             for param_group in optimizer.param_groups:
                 if param_group['lr'] > 0.005:
@@ -165,6 +180,17 @@ if __name__ == '__main__':
             optimizer.step()
             model.eval()
             print('Train - Loss: {}, Macro_F1: {} , TF_F1: {}'.format(loss.detach().cpu().numpy(), train_f1, f1_score(torch.argmax(y_train.detach().cpu(),dim=1), train_target.detach().cpu(), num_classes)[1].item()))
+            
+            # Save training loss and F1 score
+            train_losses.append(loss.item())
+            train_f1_scores.append(train_f1)
+            
+            # Save training confusion matrix
+            train_conf_matrix = confusion_matrix(
+                train_target.detach().cpu(), torch.argmax(y_train.detach().cpu(), dim=1)
+            )
+            train_conf_matrices.append(train_conf_matrix)
+                    
             # Valid
             with torch.no_grad():
                 val_loss, y_valid,_ = model.forward(A.to(device), [x.to(device) for x in node_features], valid_node.to(device), valid_target.to(device))
@@ -176,14 +202,44 @@ if __name__ == '__main__':
                 pred = onehot[pred]
                 valid_acc = accuracy(torch.argmax(y_valid.detach().cpu(),dim=1), valid_target.detach().cpu())
                 
-                conf_matrix = confusion_matrix(valid_target.detach().cpu(), torch.argmax(y_valid.detach().cpu(),dim=1))
-                print(conf_matrix)
+                # Save validation loss and F1 score
+                val_losses.append(val_loss.item())
+                val_f1_scores.append(val_f1)
+
+                # Save validation confusion matrix
+                val_conf_matrix = confusion_matrix(
+                    valid_target.detach().cpu(), torch.argmax(y_valid.detach().cpu(), dim=1)
+                )
+                val_conf_matrices.append(val_conf_matrix)
+                print(val_conf_matrix)
+
                 
             if val_f1 > best_val_f1:
                 best_val_loss = val_loss.detach().cpu().numpy()
                 best_train_loss = loss.detach().cpu().numpy()
                 best_train_f1 = train_f1
                 best_val_f1 = val_f1
+                
+                
+            # Create output directory if it does not exist
+            output_dir = 'output'
+            
+            # Convert lists to numpy arrays
+            train_losses_array = np.array(train_losses)
+            val_losses_array = np.array(val_losses)
+            train_f1_array = np.array(train_f1_scores)
+            val_f1_array = np.array(val_f1_scores)
+
+            # Save arrays as .npy files in the output directory
+            np.save(os.path.join(output_dir, 'train_losses.npy'), train_losses_array)
+            np.save(os.path.join(output_dir, 'val_losses.npy'), val_losses_array)
+            np.save(os.path.join(output_dir, 'train_f1_scores.npy'), train_f1_array)
+            np.save(os.path.join(output_dir, 'val_f1_scores.npy'), val_f1_array)
+
+            # Save confusion matrices as .npy files in the output directory
+            np.save(os.path.join(output_dir, 'train_conf_matrices.npy'), train_conf_matrices)
+            np.save(os.path.join(output_dir, 'val_conf_matrices.npy'), val_conf_matrices)
+
         print('---------------Best Results--------------------')
         print('Train - Loss: {}, Macro_F1: {}'.format(best_train_loss, best_train_f1))
         print('Valid - Loss: {}, Macro_F1: {}'.format(best_val_loss, best_val_f1))
