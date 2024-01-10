@@ -11,6 +11,7 @@ import argparse
 from utils import f1_score,accuracy
 from scripts.data_loader import data_loader
 import scipy.sparse as sp
+from sklearn.metrics import confusion_matrix
 
 def load_data(args):
     dataset, full, feats_type = args.dataset, args.full, args.feats_type
@@ -72,20 +73,20 @@ def mat2tensor(mat):
     if type(mat) is np.ndarray:
         return torch.from_numpy(mat).type(torch.FloatTensor)
     return sp_to_spt(mat)
-
+# weight 12  num_channels 5 lr 5e-3
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str,
+    parser.add_argument('--dataset', type=str, default="ERM",
                         help='Dataset')
-    parser.add_argument('--epoch', type=int, default=40,
+    parser.add_argument('--epoch', type=int, default=400,
                         help='Training Epochs')
     parser.add_argument('--node_dim', type=int, default=64,
                         help='Node dimension')
-    parser.add_argument('--num_channels', type=int, default=2,
+    parser.add_argument('--num_channels', type=int, default=5,
                         help='number of channels')
     parser.add_argument('--lr', type=float, default=0.005,
                         help='learning rate')
-    parser.add_argument('--weight_decay', type=float, default=0.001,
+    parser.add_argument('--weight_decay', type=float, default=0.005,
                         help='l2 reg')
     parser.add_argument('--num_layers', type=int, default=1,
                         help='number of layer')
@@ -117,40 +118,39 @@ if __name__ == '__main__':
             A = torch.cat([A,torch.from_numpy(edge.todense()).type(torch.FloatTensor).unsqueeze(-1)], dim=-1)
     A = torch.cat([A,torch.eye(num_nodes).type(torch.FloatTensor).unsqueeze(-1)], dim=-1)
     
-    node_features = [mat2tensor(x) for x in node_features] # torch.from_numpy(node_features).type(torch.FloatTensor)
+    node_features = [mat2tensor(x) for x in node_features] 
     train_node = torch.from_numpy(np.array(labels[0])[:,0]).type(torch.LongTensor)
     train_target = torch.from_numpy(np.array(labels[0])[:,1]).type(torch.LongTensor)
     valid_node = torch.from_numpy(np.array(labels[1])[:,0]).type(torch.LongTensor)
     valid_target = torch.from_numpy(np.array(labels[1])[:,1]).type(torch.LongTensor)
     test_node = torch.from_numpy(np.array(labels[2])).type(torch.LongTensor)
-    # test_target = torch.from_numpy(np.array(labels[2])[:,1]).type(torch.LongTensor)
     num_classes = torch.max(train_target).item()+1
     final_f1 = 0
     for l in range(1):
         model = GTN(num_edge=A.shape[-1],
                             num_channels=num_channels,
-                            w_ins = w_ins, #node_features.shape[1],
+                            w_ins = w_ins, 
                             w_out = node_dim,
                             num_class=num_classes,
                             num_layers=num_layers,
                             norm=norm).to(device)
-        if adaptive_lr == 'false':
-            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.001)
-        else:
-            optimizer = torch.optim.Adam([
-                {'params': model.weights},
-                {'params': model.layers.parameters()},
-                {'params': model.linear1.parameters()},
-                {'params': model.linear2.parameters()},
-            ], lr=lr)
+        # if adaptive_lr == 'false':
+        #     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        # else:
+        #     optimizer = torch.optim.Adam([
+        #         {'params': model.weights},
+        #         {'params': model.layers.parameters()},
+        #         {'params': model.linear1.parameters()},
+        #         {'params': model.linear2.parameters()},
+        #     ], lr=lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         loss = nn.CrossEntropyLoss()
-        # Train & Valid & Test
         best_val_loss = 10000
         best_test_loss = 10000
         best_train_loss = 10000
         best_train_f1 = 0
         best_val_f1 = 0
-        best_test_f1 = 0 # python main.py --dataset ERM --num_layers 2 --adaptive_lr false --num_channels 10 --norm False
+        best_test_f1 = 0
         for i in range(epochs):
             for param_group in optimizer.param_groups:
                 if param_group['lr'] > 0.005:
@@ -164,7 +164,7 @@ if __name__ == '__main__':
             
             optimizer.step()
             model.eval()
-            print('Train - Loss: {}, Macro_F1: {}'.format(loss.detach().cpu().numpy(), train_f1))
+            print('Train - Loss: {}, Macro_F1: {} , TF_F1: {}'.format(loss.detach().cpu().numpy(), train_f1, f1_score(torch.argmax(y_train.detach().cpu(),dim=1), train_target.detach().cpu(), num_classes)[1].item()))
             # Valid
             with torch.no_grad():
                 val_loss, y_valid,_ = model.forward(A.to(device), [x.to(device) for x in node_features], valid_node.to(device), valid_target.to(device))
@@ -175,21 +175,15 @@ if __name__ == '__main__':
                 onehot = np.eye(num_classes, dtype=np.int32)
                 pred = onehot[pred]
                 valid_acc = accuracy(torch.argmax(y_valid.detach().cpu(),dim=1), valid_target.detach().cpu())
-                print(valid_acc)
-                # test_f1 = dl.evaluate(pred)
-                # print(test_f1)
-                #test_f1 = torch.mean(f1_score(torch.argmax(y_test,dim=1), test_target, num_classes=num_classes)).cpu().numpy()
-                #print('Test - Loss: {}, Macro_F1: {}\n'.format(test_loss.detach().cpu().numpy(), test_f1))
+                
+                conf_matrix = confusion_matrix(valid_target.detach().cpu(), torch.argmax(y_valid.detach().cpu(),dim=1))
+                print(conf_matrix)
+                
             if val_f1 > best_val_f1:
                 best_val_loss = val_loss.detach().cpu().numpy()
-                #best_test_loss = test_loss.detach().cpu().numpy()
                 best_train_loss = loss.detach().cpu().numpy()
                 best_train_f1 = train_f1
                 best_val_f1 = val_f1
-                # best_test_f1 = test_f1 
         print('---------------Best Results--------------------')
         print('Train - Loss: {}, Macro_F1: {}'.format(best_train_loss, best_train_f1))
         print('Valid - Loss: {}, Macro_F1: {}'.format(best_val_loss, best_val_f1))
-        # print(best_test_f1)
-        #print('Test - Loss: {}, Macro_F1: {}'.format(best_test_loss, best_test_f1))
-        # final_f1 += best_test_f1

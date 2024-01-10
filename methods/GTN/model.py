@@ -28,7 +28,7 @@ class GTN(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.weights = [nn.Parameter(torch.Tensor(w_in, w_out)).to(self.device) for w_in in w_ins]
         self.bias = nn.Parameter(torch.Tensor(w_out)).to(self.device) # 无梯度
-        self.loss = nn.CrossEntropyLoss()
+        self.loss = nn.CrossEntropyLoss(weight=torch.tensor([1.,12.]))
         self.linear1 = nn.Linear(self.w_out*self.num_channels, self.w_out)
         self.linear2 = nn.Linear(self.w_out, self.num_class)
         self.reset_parameters()
