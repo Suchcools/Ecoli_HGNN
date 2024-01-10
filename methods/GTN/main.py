@@ -12,8 +12,6 @@ from utils import f1_score,accuracy
 from scripts.data_loader import data_loader
 import scipy.sparse as sp
 
-
-
 def load_data(args):
     dataset, full, feats_type = args.dataset, args.full, args.feats_type
     drop_feat = []
@@ -89,7 +87,7 @@ if __name__ == '__main__':
                         help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.001,
                         help='l2 reg')
-    parser.add_argument('--num_layers', type=int, default=2,
+    parser.add_argument('--num_layers', type=int, default=1,
                         help='number of layer')
     parser.add_argument('--norm', type=str, default='true',
                         help='normalization')
