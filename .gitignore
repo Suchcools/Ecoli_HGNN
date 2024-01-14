@@ -3,3 +3,4 @@
 *.npz
 *.txt
 *.fasta
+*.pt

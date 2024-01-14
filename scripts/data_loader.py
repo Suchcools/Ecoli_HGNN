@@ -248,6 +248,32 @@ class data_loader:
         j = [x[1] for x in li]
         return sp.coo_matrix((data, (i,j)), shape=(self.nodes['total'], self.nodes['total'])).tocsr()
     
+    # def load_links(self):
+    #     """
+    #     return links dict
+    #         total: total number of links
+    #         count: a dict of int, number of links for each type
+    #         meta: a dict of tuple, explaining the link type is from what type of node to what type of node
+    #         data: a dict of sparse matrices, each link type with one matrix. Shapes are all (nodes['total'], nodes['total'])
+    #     """
+    #     links = {'total':0, 'count':Counter(), 'meta':{}, 'data':defaultdict(list)}
+    #     with open(os.path.join(self.path, 'link.dat'), 'r', encoding='utf-8') as f:
+    #         for line in f:
+    #             th = line.split('\t')
+    #             h_id, t_id, r_id, link_weight = int(th[0]), int(th[1]), int(th[2]), float(th[3])
+    #             if r_id not in links['meta']:
+    #                 h_type = self.get_node_type(h_id)
+    #                 t_type = self.get_node_type(t_id)
+    #                 links['meta'][r_id] = (h_type, t_type)
+    #             links['data'][r_id].append((h_id, t_id, link_weight))
+    #             links['count'][r_id] += 1
+    #             links['total'] += 1
+    #     new_data = {}
+    #     for r_id in links['data']:
+    #         new_data[r_id] = self.list_to_sp_mat(links['data'][r_id])
+    #     links['data'] = new_data
+    #     return links
+    
     def load_links(self):
         """
         return links dict
@@ -256,22 +282,29 @@ class data_loader:
             meta: a dict of tuple, explaining the link type is from what type of node to what type of node
             data: a dict of sparse matrices, each link type with one matrix. Shapes are all (nodes['total'], nodes['total'])
         """
-        links = {'total':0, 'count':Counter(), 'meta':{}, 'data':defaultdict(list)}
+        links = {'total':0, 'count':Counter(), 'meta':{}, 'data':defaultdict(list), 'type':defaultdict(list)}
         with open(os.path.join(self.path, 'link.dat'), 'r', encoding='utf-8') as f:
             for line in f:
                 th = line.split('\t')
-                h_id, t_id, r_id, link_weight = int(th[0]), int(th[1]), int(th[2]), float(th[3])
+                h_id, t_id, r_id, link_type, link_weight = int(th[0]), int(th[1]), int(th[2]), int(th[3]), float(th[4])
                 if r_id not in links['meta']:
                     h_type = self.get_node_type(h_id)
                     t_type = self.get_node_type(t_id)
                     links['meta'][r_id] = (h_type, t_type)
                 links['data'][r_id].append((h_id, t_id, link_weight))
+                links['type'][r_id].append((h_id, t_id, link_type))
                 links['count'][r_id] += 1
                 links['total'] += 1
         new_data = {}
         for r_id in links['data']:
             new_data[r_id] = self.list_to_sp_mat(links['data'][r_id])
         links['data'] = new_data
+        
+        new_data = {}
+        for r_id in links['type']:
+            new_data[r_id] = self.list_to_sp_mat(links['type'][r_id])
+        links['type'] = new_data
+        
         return links
 
     def load_nodes(self):
