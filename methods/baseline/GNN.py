@@ -47,17 +47,17 @@ class myGAT(nn.Module):
             feat_drop, attn_drop, negative_slope, residual, None, alpha=alpha))
         self.epsilon = torch.FloatTensor([1e-12]).cuda()
 
-    def forward(self, features_list, e_feat):
+    def forward(self, features_list, e_feat, e_type):
         h = []
         for fc, feature in zip(self.fc_list, features_list):
             h.append(fc(feature))
         h = torch.cat(h, 0)
         res_attn = None
         for l in range(self.num_layers):
-            h, res_attn = self.gat_layers[l](self.g, h, e_feat, res_attn=res_attn)
+            h, res_attn = self.gat_layers[l](self.g, h, e_feat, e_type, res_attn=res_attn)
             h = h.flatten(1)
         # output projection
-        logits, _ = self.gat_layers[-1](self.g, h, e_feat, res_attn=None)
+        logits, _ = self.gat_layers[-1](self.g, h, e_feat, e_type, res_attn=None)
         logits = logits.mean(1)
         # This is an equivalent replacement for tf.l2_normalize, see https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/l2_normalize for more information.
         logits = logits / (torch.max(torch.norm(logits, dim=1, keepdim=True), self.epsilon))

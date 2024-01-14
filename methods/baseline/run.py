@@ -87,16 +87,31 @@ def run_model_DBLP(args):
             if (v,u) not in edge2type:
                 edge2type[(v,u)] = k+1+len(dl.links['count'])
                 
+    type2emb = {}
+    for k in dl.links['data']:
+        for u,v in zip(*dl.links['data'][k].nonzero()):
+            type2emb[(u,v)] = dl.links['type'][k][u, v]
+    for i in range(dl.nodes['total']):
+        if (i,i) not in type2emb:
+            type2emb[(i,i)] = dl.links['type'][k][i, i]
+    for k in dl.links['data']:
+        for u,v in zip(*dl.links['data'][k].nonzero()):
+            if (v,u) not in type2emb:
+                type2emb[(v,u)] = dl.links['type'][k][v, u]             
+                
     g = dgl.DGLGraph(adjM+(adjM.T))
     g = dgl.remove_self_loop(g)
     g = dgl.add_self_loop(g)
     g = g.to(device)
     e_feat = []
+    e_type = []
     for u, v in zip(*g.edges()):
         u = u.cpu().item()
         v = v.cpu().item()
         e_feat.append(edge2type[(u,v)])
+        e_type.append(type2emb[(u,v)])
     e_feat = torch.tensor(e_feat, dtype=torch.long).to(device)
+    e_type = torch.tensor(e_type, dtype=torch.long).to(device)
 
     for _ in range(args.repeat):
         num_classes = dl.labels_train['num_classes']
@@ -113,7 +128,7 @@ def run_model_DBLP(args):
             # training
             net.train()
 
-            logits = net(features_list, e_feat)
+            logits = net(features_list, e_feat, e_type)
             logp = F.log_softmax(logits, 1)
             # train_loss = F.nll_loss(logp[train_idx], labels[train_idx])
             train_loss = F.cross_entropy(logp[train_idx], labels[train_idx], weight=torch.tensor([1.0, args.weight]).cuda())
@@ -132,7 +147,7 @@ def run_model_DBLP(args):
             # validation
             net.eval()
             with torch.no_grad():
-                logits = net(features_list, e_feat)
+                logits = net(features_list, e_feat, e_type)
                 logp = F.log_softmax(logits, 1)
                 val_loss = F.nll_loss(logp[val_idx], labels[val_idx])
             t_end = time.time()
@@ -150,7 +165,7 @@ def run_model_DBLP(args):
         net.eval()
         test_logits = []
         with torch.no_grad():
-            logits = net(features_list, e_feat)
+            logits = net(features_list, e_feat, e_type)
             test_logits = logits[test_idx]
             pred = test_logits.cpu().numpy().argmax(axis=1)
             onehot = np.eye(num_classes, dtype=np.int32)
@@ -192,7 +207,7 @@ if __name__ == '__main__':
     ap.add_argument('--weight-decay', type=float, default=1e-4)
     ap.add_argument('--weight', type=float, default=10)
     ap.add_argument('--slope', type=float, default=0.05)
-    ap.add_argument('--dataset', type=str, default="ERM_N")
+    ap.add_argument('--dataset', type=str, default="ERM_E")
     ap.add_argument('--edge-feats', type=int, default=64)
     ap.add_argument('--run', type=int, default=1)
     ap.add_argument('--name', type=str, default=f"edge_embedding")
