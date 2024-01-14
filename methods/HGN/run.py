@@ -64,6 +64,7 @@ def run_model_DBLP(args):
             indices = torch.LongTensor(indices)
             values = torch.FloatTensor(np.ones(dim))
             features_list[i] = torch.sparse.FloatTensor(indices, values, torch.Size([dim, dim])).to(device)
+            
     labels = torch.LongTensor(labels).to(device)
     train_idx = train_val_test_idx['train_idx']
     train_idx = np.sort(train_idx)

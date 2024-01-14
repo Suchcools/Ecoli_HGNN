@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             // "args":["--dataset","ERM","--model-type","gat","--feats-type","0"] // ACM ERM
-            "args":["--dataset","ERM","--model-type","gcn","--weight-decay","1e-6","--lr","1e-3","--feats-type","3"] // ACM ERM
+            "args":["--dataset","ERM","--model-type","gcn","--weight-decay","1e-6","--lr","1e-3","--feats-type","5"] // ACM ERM
         }
     ]
 }

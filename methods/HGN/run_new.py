@@ -9,7 +9,6 @@ import numpy as np
 import shutil
 from utils.pytorchtools import EarlyStopping
 from utils.data import load_data
-#from utils.tools import index_generator, evaluate_results_nc, parse_minibatch
 from GNN import myGAT
 import dgl
 
@@ -180,6 +179,9 @@ def run_model_DBLP(args):
             from sklearn import metrics
             report=classification_report(groundtruth, predict,output_dict=True,zero_division=0)
             report = pd.DataFrame(report)
+            cm = confusion_matrix(groundtruth, predict)
+            print(report)
+            print(cm)
             print(f"TF F1 Score : {report['1']['f1-score']}")
 
 if __name__ == '__main__':
@@ -203,7 +205,7 @@ if __name__ == '__main__':
     ap.add_argument('--weight-decay', type=float, default=1e-4)
     ap.add_argument('--slope', type=float, default=0.05)
     ap.add_argument('--dataset', type=str)
-    ap.add_argument('--weight', type=float)
+    ap.add_argument('--weight', type=float, default=10)
     ap.add_argument('--edge-feats', type=int, default=64)
     ap.add_argument('--run', type=int, default=2)
 

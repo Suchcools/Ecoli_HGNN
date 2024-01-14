@@ -135,15 +135,7 @@ if __name__ == '__main__':
                             num_class=num_classes,
                             num_layers=num_layers,
                             norm=norm).to(device)
-        # if adaptive_lr == 'false':
-        #     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        # else:
-        #     optimizer = torch.optim.Adam([
-        #         {'params': model.weights},
-        #         {'params': model.layers.parameters()},
-        #         {'params': model.linear1.parameters()},
-        #         {'params': model.linear2.parameters()},
-        #     ], lr=lr)
+ 
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         loss = nn.CrossEntropyLoss()
         best_val_loss = 10000

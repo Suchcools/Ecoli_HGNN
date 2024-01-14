@@ -3,7 +3,6 @@ sys.path.append('../../')
 import time
 import argparse
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = ""
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -79,11 +78,7 @@ def run_model_DBLP(args):
     g = dgl.remove_self_loop(g)
     g = dgl.add_self_loop(g)
     g = g.to(device)
-    # import matplotlib.pyplot as plt
-    # import networkx as nx
-    # plt.subplot(111)
-    # nx.draw(g.cpu().to_networkx(), with_labels=True)
-    # plt.savefig('1.png')
+
     for _ in range(args.repeat):
         num_classes = dl.labels_train['num_classes']
         if args.model_type == 'gat':
@@ -106,7 +101,7 @@ def run_model_DBLP(args):
 
             logits = net(features_list)
             logp = F.log_softmax(logits, 1)
-            train_loss = F.nll_loss(logp[train_idx], labels[train_idx])
+            train_loss = F.cross_entropy(logp[train_idx], labels[train_idx], weight=torch.tensor([1.0, args.weight]).cuda())
 
             # autograd
             optimizer.zero_grad()
@@ -172,30 +167,10 @@ if __name__ == '__main__':
     ap.add_argument('--lr', type=float, default=5e-4)
     ap.add_argument('--dropout', type=float, default=0.1)
     ap.add_argument('--weight-decay', type=float, default=1e-4)
+    ap.add_argument('--weight', type=float, default=1)
     ap.add_argument('--slope', type=float, default=0.05)
     ap.add_argument('--dataset', type=str)
 
-
-    # ap.add_argument('--feats-type', type=int, default=3,
-    #                 help='Type of the node features used. ' +
-    #                      '0 - loaded features; ' +
-    #                      '1 - only target node features (zero vec for others); ' +
-    #                      '2 - only target node features (id vec for others); ' +
-    #                      '3 - all id vec. Default is 2;' +
-    #                     '4 - only term features (id vec for others);' + 
-    #                     '5 - only term features (zero vec for others).')
-    # ap.add_argument('--hidden-dim', type=int, default=64, help='Dimension of the node hidden state. Default is 64.')
-    # ap.add_argument('--num-heads', type=int, default=8, help='Number of the attention heads. Default is 8.')
-    # ap.add_argument('--epoch', type=int, default=300, help='Number of epochs.')
-    # ap.add_argument('--patience', type=int, default=30, help='Patience.')
-    # ap.add_argument('--repeat', type=int, default=1, help='Repeat the training and testing for N times. Default is 1.')
-    # ap.add_argument('--model-type', type=str, help="gcn or gat")
-    # ap.add_argument('--num-layers', type=int, default=2)
-    # ap.add_argument('--lr', type=float, default=5e-4)
-    # ap.add_argument('--dropout', type=float, default=0.5)
-    # ap.add_argument('--weight-decay', type=float, default=1e-4)
-    # ap.add_argument('--slope', type=float, default=0.05)
-    # ap.add_argument('--dataset', type=str)
 
     args = ap.parse_args()
     run_model_DBLP(args)

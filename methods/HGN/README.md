@@ -5,7 +5,7 @@ For message passing with relation attention version:
 ```
 python run_new.py --dataset DBLP
 python run_new.py --dataset ACM --feats-type 2
-python run_new.py --dataset ERM --feats-type 2
+python run_new.py --dataset ERM --feats-type 2 --weight 10
 python run_multi.py --dataset IMDB --feats-type 0
 python run_new.py --dataset Freebase
 ```
