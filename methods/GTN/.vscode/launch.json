@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args":["--dataset","ERM","--num_layers","1","--adaptive_lr","false","--num_channels","10","--norm","False"] // ACM ERM
+            "args":["--dataset","ERM_N","--num_layers","1","--adaptive_lr","false","--num_channels","10","--norm","False"] // ACM ERM
         }
     ]
 }
