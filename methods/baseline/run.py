@@ -2,14 +2,17 @@ import sys
 sys.path.append('../../')
 import time
 import argparse
-
+import os
 import torch
 import torch.nn.functional as F
 import numpy as np
-
+import pandas as pd
+from sklearn.metrics import classification_report
 from utils.pytorchtools import EarlyStopping
 from utils.data import load_data
-from GNN import GCN, GAT, RGAT
+from sklearn.metrics import confusion_matrix
+#from utils.tools import index_generator, evaluate_results_nc, parse_minibatch
+from GNN import myGAT
 import dgl
 
 def sp_to_spt(mat):
@@ -30,7 +33,7 @@ def mat2tensor(mat):
 
 def run_model_DBLP(args):
     feats_type = args.feats_type
-    features_list, adjs, labels, train_val_test_idx, dl = load_data(args.dataset)
+    features_list, adjM, labels, train_val_test_idx, dl = load_data(args.dataset)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     features_list = [mat2tensor(features).to(device) for features in features_list]
     if feats_type == 0:
@@ -72,19 +75,33 @@ def run_model_DBLP(args):
     test_idx = train_val_test_idx['test_idx']
     test_idx = np.sort(test_idx)
     
-    gs = [dgl.DGLGraph(adj) for adj in adjs]
-    new_gs = []
-    for g in gs:
-        g = dgl.remove_self_loop(g)
-        g = dgl.add_self_loop(g)
-        new_gs.append(g)
-    gs = new_gs
-    gs = [g.to(device) for g in gs]
+    edge2type = {}
+    for k in dl.links['data']:
+        for u,v in zip(*dl.links['data'][k].nonzero()):
+            edge2type[(u,v)] = k
+    for i in range(dl.nodes['total']):
+        if (i,i) not in edge2type:
+            edge2type[(i,i)] = len(dl.links['count'])
+    for k in dl.links['data']:
+        for u,v in zip(*dl.links['data'][k].nonzero()):
+            if (v,u) not in edge2type:
+                edge2type[(v,u)] = k+1+len(dl.links['count'])
+    
+    g = dgl.DGLGraph(adjM+(adjM.T))
+    g = dgl.remove_self_loop(g)
+    g = dgl.add_self_loop(g)
+    g = g.to(device)
+    e_feat = []
+    for u, v in zip(*g.edges()):
+        u = u.cpu().item()
+        v = v.cpu().item()
+        e_feat.append(edge2type[(u,v)])
+    e_feat = torch.tensor(e_feat, dtype=torch.long).to(device)
 
     for _ in range(args.repeat):
         num_classes = dl.labels_train['num_classes']
         heads = [args.num_heads] * args.num_layers + [1]
-        net = RGAT(gs, in_dims, args.hidden_dim, num_classes, args.num_layers, heads, F.elu, args.dropout, args.dropout, args.slope, False)
+        net = myGAT(g, args.edge_feats, len(dl.links['count'])*2+1, in_dims, args.hidden_dim, num_classes, args.num_layers, heads, F.elu, args.dropout, args.dropout, args.slope, True, 0.05)
         net.to(device)
         optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
@@ -96,9 +113,10 @@ def run_model_DBLP(args):
             # training
             net.train()
 
-            logits = net(features_list)
+            logits = net(features_list, e_feat)
             logp = F.log_softmax(logits, 1)
-            train_loss = F.nll_loss(logp[train_idx], labels[train_idx])
+            # train_loss = F.nll_loss(logp[train_idx], labels[train_idx])
+            train_loss = F.cross_entropy(logp[train_idx], labels[train_idx], weight=torch.tensor([1.0, args.weight]).cuda())
 
             # autograd
             optimizer.zero_grad()
@@ -114,7 +132,7 @@ def run_model_DBLP(args):
             # validation
             net.eval()
             with torch.no_grad():
-                logits = net(features_list)
+                logits = net(features_list, e_feat)
                 logp = F.log_softmax(logits, 1)
                 val_loss = F.nll_loss(logp[val_idx], labels[val_idx])
             t_end = time.time()
@@ -132,36 +150,53 @@ def run_model_DBLP(args):
         net.eval()
         test_logits = []
         with torch.no_grad():
-            logits = net(features_list)
+            logits = net(features_list, e_feat)
             test_logits = logits[test_idx]
             pred = test_logits.cpu().numpy().argmax(axis=1)
             onehot = np.eye(num_classes, dtype=np.int32)
-            dl.gen_file_for_evaluate(test_idx=test_idx, label=pred, file_name = f"{args.dataset}_1")
+            dl.gen_file_for_evaluate(test_idx=test_idx, label=pred, file_name=f"{args.dataset}_{args.run}.txt")
             pred = onehot[pred]
             print(dl.evaluate(pred))
-
+            y_true = dl.labels_test['data'][dl.labels_test['mask']].argmax(axis=1)
+            prob = test_logits.cpu().numpy()
+            y_pred = np.argmax(prob, axis=1)
+            np.savez(f"output/save/{args.name}.npz", label=y_true, prob=prob)
+            
+            # Calculate the classification report
+            report = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
+            print(pd.DataFrame(report))
+            # Calculate the confusion matrix
+            conf_matrix = confusion_matrix(y_true, y_pred)
+            # Print the confusion matrix
+            print(conf_matrix)
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(description='MRGNN testing for the DBLP dataset')
-    ap.add_argument('--feats-type', type=int, default=3,
-                    help='Type of the node features used. ' +
-                         '0 - loaded features; ' +
-                         '1 - only target node features (zero vec for others); ' +
-                         '2 - only target node features (id vec for others); ' +
-                         '3 - all id vec. Default is 2;' +
-                        '4 - only term features (id vec for others);' + 
-                        '5 - only term features (zero vec for others).')
-    ap.add_argument('--hidden-dim', type=int, default=64, help='Dimension of the node hidden state. Default is 64.')
-    ap.add_argument('--num-heads', type=int, default=8, help='Number of the attention heads. Default is 8.')
-    ap.add_argument('--epoch', type=int, default=300, help='Number of epochs.')
-    ap.add_argument('--patience', type=int, default=30, help='Patience.')
-    ap.add_argument('--repeat', type=int, default=1, help='Repeat the training and testing for N times. Default is 1.')
-    ap.add_argument('--num-layers', type=int, default=3)
-    ap.add_argument('--lr', type=float, default=5e-4)
-    ap.add_argument('--dropout', type=float, default=0.5)
-    ap.add_argument('--weight-decay', type=float, default=1e-4)
-    ap.add_argument('--slope', type=float, default=0.01)
-    ap.add_argument('--dataset', type=str)
-
-    args = ap.parse_args()
-    run_model_DBLP(args)
+    for feats in range(6):
+        ap = argparse.ArgumentParser(description='MRGNN testing for the DBLP dataset')
+        ap.add_argument('--feats-type', type=int, default=feats,
+                        help='Type of the node features used. ' +
+                            '0 - loaded features; ' +
+                            '1 - only target node features (zero vec for others); ' +
+                            '2 - only target node features (id vec for others); ' +
+                            '3 - all id vec. Default is 2;' +
+                            '4 - only term features (id vec for others);' + 
+                            '5 - only term features (zero vec for others).')
+        ap.add_argument('--hidden-dim', type=int, default=64, help='Dimension of the node hidden state. Default is 64.')
+        ap.add_argument('--num-heads', type=int, default=8, help='Number of the attention heads. Default is 8.')
+        ap.add_argument('--epoch', type=int, default=300, help='Number of epochs.')
+        ap.add_argument('--patience', type=int, default=30, help='Patience.')
+        ap.add_argument('--repeat', type=int, default=1, help='Repeat the training and testing for N times. Default is 1.')
+        ap.add_argument('--num-layers', type=int, default=2)
+        ap.add_argument('--lr', type=float, default=5e-4)
+        ap.add_argument('--dropout', type=float, default=0.5)
+        ap.add_argument('--weight-decay', type=float, default=1e-4)
+        ap.add_argument('--weight', type=float, default=10)
+        ap.add_argument('--slope', type=float, default=0.05)
+        ap.add_argument('--dataset', type=str, default="ERM")
+        ap.add_argument('--edge-feats', type=int, default=64)
+        ap.add_argument('--run', type=int, default=1)
+        ap.add_argument('--name', type=str, default=f"feats{feats}")
+        
+        args = ap.parse_args()
+        os.makedirs('checkpoint', exist_ok=True)
+        run_model_DBLP(args)

@@ -85,7 +85,6 @@ def run_model_DBLP(args):
             if (v,u) not in edge2type:
                 edge2type[(v,u)] = k+1+len(dl.links['count'])
     
-
     g = dgl.DGLGraph(adjM+(adjM.T))
     g = dgl.remove_self_loop(g)
     g = dgl.add_self_loop(g)

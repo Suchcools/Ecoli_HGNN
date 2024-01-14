@@ -140,7 +140,7 @@ def run_model_DBLP(args):
             pred = onehot[pred]
             print(dl.evaluate(pred))
 
-
+import os
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='MRGNN testing for the DBLP dataset')
     ap.add_argument('--feats-type', type=int, default=3,
@@ -154,14 +154,18 @@ if __name__ == '__main__':
     ap.add_argument('--hidden-dim', type=int, default=64, help='Dimension of the node hidden state. Default is 64.')
     ap.add_argument('--num-heads', type=int, default=8, help='Number of the attention heads. Default is 8.')
     ap.add_argument('--epoch', type=int, default=300, help='Number of epochs.')
-    ap.add_argument('--patience', type=int, default=30, help='Patience.')
+    ap.add_argument('--patience', type=int, default=50, help='Patience.')
     ap.add_argument('--repeat', type=int, default=1, help='Repeat the training and testing for N times. Default is 1.')
-    ap.add_argument('--num-layers', type=int, default=3)
-    ap.add_argument('--lr', type=float, default=5e-4)
+    ap.add_argument('--num-layers', type=int, default=1)
+    ap.add_argument('--lr', type=float, default=4e-3)
     ap.add_argument('--dropout', type=float, default=0.5)
     ap.add_argument('--weight-decay', type=float, default=1e-4)
-    ap.add_argument('--slope', type=float, default=0.01)
+    ap.add_argument('--slope', type=float, default=0.05)
     ap.add_argument('--dataset', type=str)
+    ap.add_argument('--weight', type=float, default=10)
+    ap.add_argument('--edge-feats', type=int, default=64)
+    ap.add_argument('--run', type=int, default=2)
 
     args = ap.parse_args()
+    os.makedirs('checkpoint', exist_ok=True)
     run_model_DBLP(args)

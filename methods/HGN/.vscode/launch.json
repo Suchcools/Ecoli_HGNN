@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args":["--dataset","ERM","--feats-type","5"] // ACM ERM
+            "args":["--dataset","ERM","--feats-type","3"] // ACM ERM
         }
     ]
 }
