@@ -132,12 +132,10 @@ def run_model_DBLP(args):
             logits = net(features_list, e_feat, e_type)
             logp = F.log_softmax(logits, 1)
             # train_loss = F.nll_loss(logp[train_idx], labels[train_idx])
-            # train_loss = F.cross_entropy(logp[train_idx], labels[train_idx], weight=torch.tensor([1.0, args.weight]).cuda())
+            train_loss = F.cross_entropy(logp[train_idx], labels[train_idx], weight=torch.tensor([1.0, args.weight]).cuda())
             # train_loss = FocalLoss()(logp[train_idx], labels[train_idx])
-            train_loss = DSCLoss()(logp[train_idx], labels[train_idx])
+            # train_loss = DSCLoss()(logp[train_idx], labels[train_idx])
             
-            
-
             # autograd
             optimizer.zero_grad()
             train_loss.backward()
@@ -215,7 +213,7 @@ if __name__ == '__main__':
     ap.add_argument('--dataset', type=str, default="ERM_E")
     ap.add_argument('--edge-feats', type=int, default=64)
     ap.add_argument('--run', type=int, default=1)
-    ap.add_argument('--name', type=str, default=f"loss_focal2")
+    ap.add_argument('--name', type=str, default=f"compare")
     
     args = ap.parse_args()
     os.makedirs('checkpoint', exist_ok=True)
