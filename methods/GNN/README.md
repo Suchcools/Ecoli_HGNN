@@ -3,11 +3,6 @@
 (To be tuned)
 
 ```
-python run.py --dataset DBLP --model-type gat
-python run.py --dataset DBLP --model-type gcn --weight-decay 1e-6 --lr 1e-3
-
-python run.py --dataset ACM --model-type gat --feats-type 2
-python run.py --dataset ACM --model-type gcn --weight-decay 1e-6 --lr 1e-3 --feats-type=0
 python run.py --dataset ERM --model-type gat --feats-type 2
 python run.py --dataset ERM --model-type gcn --weight-decay 1e-6 --lr 1e-3 --feats-type=0
 

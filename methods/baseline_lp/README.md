@@ -2,15 +2,13 @@
 
 
 ```
-python run_new.py --dataset LastFM
-python run_dist.py --dataset amazon
-python run_dist.py --dataset PubMed --batch-size 8192
+python run_new.py --dataset ERM_LP
 ```
 
 ## running environment
 
-* torch 1.6.0 cuda 10.1
-* dgl 0.4.3 cuda 10.1
+* torch 2.1.1 cuda 11.8
+* dgl 1.1.2 cuda 11.8
 * networkx 2.3
-* scikit-learn 0.23.2
-* scipy 1.5.2
+* scikit-learn 1.3.2
+* scipy 1.11.3
