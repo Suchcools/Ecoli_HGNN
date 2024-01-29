@@ -5,7 +5,7 @@ import pickle
 import scipy.sparse as sp
 
 def load_data(prefix='DBLP'):
-    from scripts.data_loader import data_loader
+    from scripts_lp.data_loader import data_loader
     dl = data_loader('../../data/'+prefix)
     features = []
     for i in range(len(dl.nodes['count'])):

@@ -15,6 +15,15 @@ from GNN import myGAT
 import dgl
 import os
 
+# {'roc_auc': 0.7813838908344403, 'MRR': 0.8954918032786885}
+# {'roc_auc': 0.8095157589663085, 'MRR': 0.9549180327868853}
+
+# {'roc_auc': 0.7439149861127883, 'MRR': 0.8554644808743169}
+# {'roc_auc': 0.8355657529283904, 'MRR': 0.930327868852459}
+
+# {'roc_auc': 0.7967636758845551, 'MRR': 0.9002732240437158}
+# {'roc_auc': 0.8368892645815722, 'MRR': 0.9494535519125683}
+
 def sp_to_spt(mat):
     coo = mat.tocoo()
     values = coo.data
@@ -235,7 +244,7 @@ def run_model_DBLP(args):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='MRGNN testing for the DBLP dataset')
-    ap.add_argument('--feats-type', type=int, default=3,
+    ap.add_argument('--feats-type', type=int, default=2,
                     help='Type of the node features used. ' +
                          '0 - loaded features; ' +
                          '1 - only target node features (zero vec for others); ' +
