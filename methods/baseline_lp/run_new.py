@@ -24,6 +24,7 @@ import os
 # {'roc_auc': 0.7967636758845551, 'MRR': 0.9002732240437158}
 # {'roc_auc': 0.8368892645815722, 'MRR': 0.9494535519125683}
 
+
 def sp_to_spt(mat):
     coo = mat.tocoo()
     values = coo.data
@@ -88,6 +89,8 @@ def run_model_DBLP(args):
         for u,v in zip(*dl.links['data'][k].nonzero()):
             if (v,u) not in edge2type:
                 edge2type[(v,u)] = k+1+len(dl.links['count'])
+                
+
 
     g = dgl.DGLGraph(adjM+(adjM.T))
     g = dgl.remove_self_loop(g)
