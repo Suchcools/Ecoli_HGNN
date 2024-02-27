@@ -56,6 +56,7 @@ class myGAT(nn.Module):
         for l in range(self.num_layers):
             h, res_attn = self.gat_layers[l](self.g, h, e_feat, e_type, res_attn=res_attn)
             h = h.flatten(1)
+        
         # output projection
         logits, _ = self.gat_layers[-1](self.g, h, e_feat, e_type, res_attn=None)
         logits = logits.mean(1)

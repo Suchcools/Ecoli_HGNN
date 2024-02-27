@@ -15,15 +15,16 @@ from GNN import myGAT
 import dgl
 import os
 
+# 
+
 # {'roc_auc': 0.7813838908344403, 'MRR': 0.8954918032786885}
 # {'roc_auc': 0.8095157589663085, 'MRR': 0.9549180327868853}
-
-# {'roc_auc': 0.7439149861127883, 'MRR': 0.8554644808743169}
-# {'roc_auc': 0.8355657529283904, 'MRR': 0.930327868852459}
 
 # {'roc_auc': 0.7967636758845551, 'MRR': 0.9002732240437158}
 # {'roc_auc': 0.8368892645815722, 'MRR': 0.9494535519125683}
 
+# {'roc_auc': 0.8112643400555489, 'MRR': 0.8975409836065574}
+# {'roc_auc': 0.8542060137664533, 'MRR': 0.9221311475409836}
 
 def sp_to_spt(mat):
     coo = mat.tocoo()
@@ -90,18 +91,32 @@ def run_model_DBLP(args):
             if (v,u) not in edge2type:
                 edge2type[(v,u)] = k+1+len(dl.links['count'])
                 
-
-
+    type2emb = {}
+    for k in dl.links['data']:
+        for u,v in zip(*dl.links['data'][k].nonzero()):
+            type2emb[(u,v)] = dl.links['type'][k][u, v]
+    for i in range(dl.nodes['total']):
+        if (i,i) not in type2emb:
+            type2emb[(i,i)] = dl.links['type'][k][i, i]
+    for k in dl.links['data']:
+        for u,v in zip(*dl.links['data'][k].nonzero()):
+            if (v,u) not in type2emb:
+                type2emb[(v,u)] = dl.links['type'][k][v, u]             
+    
     g = dgl.DGLGraph(adjM+(adjM.T))
     g = dgl.remove_self_loop(g)
     g = dgl.add_self_loop(g)
     g = g.to(device)
     e_feat = []
+    e_type = []
     for u, v in zip(*g.edges()):
         u = u.cpu().item()
         v = v.cpu().item()
         e_feat.append(edge2type[(u,v)])
+        e_type.append(type2emb[(u,v)])
     e_feat = torch.tensor(e_feat, dtype=torch.long).to(device)
+    e_type = torch.tensor(e_type, dtype=torch.long).to(device)
+    
     res_2hop = defaultdict(float)
     res_random = defaultdict(float)
     total = len(list(dl.links_test['data'].keys()))
@@ -143,7 +158,7 @@ def run_model_DBLP(args):
             mid = np.zeros(train_pos_head.shape[0]+train_neg_head.shape[0], dtype=np.int32)
             labels = torch.FloatTensor(np.concatenate([np.ones(train_pos_head.shape[0]), np.zeros(train_neg_head.shape[0])])).to(device)
 
-            logits = net(features_list, e_feat, left, right, mid)
+            logits = net(features_list, e_feat, e_type, left, right, mid)
             logp = F.sigmoid(logits)
             train_loss = loss_func(logp, labels)
 
@@ -170,7 +185,7 @@ def run_model_DBLP(args):
                 right = np.concatenate([valid_pos_tail, valid_neg_tail])
                 mid = np.zeros(valid_pos_head.shape[0]+valid_neg_head.shape[0], dtype=np.int32)
                 labels = torch.FloatTensor(np.concatenate([np.ones(valid_pos_head.shape[0]), np.zeros(valid_neg_head.shape[0])])).to(device)
-                logits = net(features_list, e_feat, left, right, mid)
+                logits = net(features_list, e_feat, e_type, left, right, mid)
                 logp = F.sigmoid(logits)
                 val_loss = loss_func(logp, labels)
             t_end = time.time()
@@ -209,7 +224,7 @@ def run_model_DBLP(args):
             mid = np.zeros(left.shape[0], dtype=np.int32)
             mid[:] = test_edge_type
             labels = torch.FloatTensor(test_label).to(device)
-            logits = net(features_list, e_feat, left, right, mid)
+            logits = net(features_list, e_feat, e_type, left, right, mid)
             pred = F.sigmoid(logits).cpu().numpy()
             edge_list = np.concatenate([left.reshape((1,-1)), right.reshape((1,-1))], axis=0)
             labels = labels.cpu().numpy()
@@ -229,7 +244,7 @@ def run_model_DBLP(args):
             mid = np.zeros(left.shape[0], dtype=np.int32)
             mid[:] = test_edge_type
             labels = torch.FloatTensor(test_label).to(device)
-            logits = net(features_list, e_feat, left, right, mid)
+            logits = net(features_list, e_feat, e_type, left, right, mid)
             pred = F.sigmoid(logits).cpu().numpy()
             edge_list = np.concatenate([left.reshape((1,-1)), right.reshape((1,-1))], axis=0)
             labels = labels.cpu().numpy()

@@ -76,7 +76,7 @@ class myGAT(nn.Module):
         # This is an equivalent replacement for tf.l2_normalize, see https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/l2_normalize for more information.
         return x / (torch.max(torch.norm(x, dim=1, keepdim=True), self.epsilon))
 
-    def forward(self, features_list, e_feat, left, right, mid):
+    def forward(self, features_list, e_feat, e_type, left, right, mid):
         h = []
         for fc, feature in zip(self.fc_list, features_list):
             h.append(fc(feature))
@@ -84,11 +84,11 @@ class myGAT(nn.Module):
         emb = [self.l2_norm(h)]
         res_attn = None
         for l in range(self.num_layers):
-            h, res_attn = self.gat_layers[l](self.g, h, e_feat, res_attn=res_attn)
+            h, res_attn = self.gat_layers[l](self.g, h, e_feat, e_type, res_attn=res_attn)
             emb.append(self.l2_norm(h.mean(1)))
             h = h.flatten(1)
         # output projection
-        logits, _ = self.gat_layers[-1](self.g, h, e_feat, res_attn=res_attn)#None)
+        logits, _ = self.gat_layers[-1](self.g, h, e_feat, e_type, res_attn=res_attn)#None)
         logits = logits.mean(1)
         logits = self.l2_norm(logits)
         emb.append(logits)

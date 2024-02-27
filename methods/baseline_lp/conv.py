@@ -36,6 +36,8 @@ class myGATConv(nn.Module):
         self._out_feats = out_feats
         self._allow_zero_in_degree = allow_zero_in_degree
         self.edge_emb = nn.Embedding(num_etypes, edge_feats)
+        self.type_emb = nn.Embedding(100, edge_feats)
+        
         if isinstance(in_feats, tuple):
             self.fc_src = nn.Linear(
                 self._in_src_feats, out_feats * num_heads, bias=False)
@@ -83,7 +85,7 @@ class myGATConv(nn.Module):
     def set_allow_zero_in_degree(self, set_value):
         self._allow_zero_in_degree = set_value
 
-    def forward(self, graph, feat, e_feat, res_attn=None):
+    def forward(self, graph, feat, e_feat, e_type, res_attn=None):
         with graph.local_scope():
             if not self._allow_zero_in_degree:
                 if (graph.in_degrees() == 0).any():
@@ -111,6 +113,9 @@ class myGATConv(nn.Module):
                 if graph.is_block:
                     feat_dst = feat_src[:graph.number_of_dst_nodes()]
             e_feat = self.edge_emb(e_feat)
+            e_type = self.type_emb(e_type)
+            e_feat = e_feat + e_type
+            
             e_feat = self.fc_e(e_feat).view(-1, self._num_heads, self._edge_feats)
             ee = (e_feat * self.attn_e).sum(dim=-1).unsqueeze(-1)
             el = (feat_src * self.attn_l).sum(dim=-1).unsqueeze(-1)
