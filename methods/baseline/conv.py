@@ -2,12 +2,31 @@
 # pylint: disable= no-member, arguments-differ, invalid-name
 import torch as th
 from torch import nn
-
+import torch
 from dgl import function as fn
 from dgl.nn.pytorch import edge_softmax
 from dgl._ffi.base import DGLError
 from dgl.nn.pytorch.utils import Identity
 from dgl.utils import expand_as_pair
+
+class FM(nn.Module):
+    def __init__(self, p, k=8, dim=8):
+        super(FM, self).__init__()
+        self.p = p
+        self.k = k
+        self.linear = nn.Linear(self.p, dim, bias=True)
+        self.v = nn.Parameter(torch.Tensor(self.p, self.k), requires_grad=True)
+        self.v.data.uniform_(-0.01, 0.01)
+        self.drop = nn.Dropout(0.3)
+
+    def forward(self, x):
+        linear_part = self.linear(x)
+        inter_part1 = torch.pow(torch.mm(x, self.v), 2)
+        inter_part2 = torch.mm(torch.pow(x, 2), torch.pow(self.v, 2))
+        pair_interactions = torch.sum(torch.sub(inter_part1, inter_part2), dim=1)
+        self.drop(pair_interactions)
+        output = linear_part.transpose(1, 0) + 0.5 * pair_interactions
+        return output.transpose(1, 0)
 
 # pylint: enable=W0235
 class myGATConv(nn.Module):
@@ -37,6 +56,7 @@ class myGATConv(nn.Module):
         self._allow_zero_in_degree = allow_zero_in_degree
         self.edge_emb = nn.Embedding(num_etypes, edge_feats)
         self.type_emb = nn.Embedding(100, edge_feats)
+        self.fm = FM(16,8)
     
         if isinstance(in_feats, tuple):
             self.fc_src = nn.Linear(
@@ -124,7 +144,17 @@ class myGATConv(nn.Module):
             graph.dstdata.update({'er': er})
             graph.edata.update({'ee': ee})
             graph.apply_edges(fn.u_add_v('el', 'er', 'e'))
-            e = self.leaky_relu(graph.edata.pop('e')+graph.edata.pop('ee'))
+            
+            # fm
+            e = graph.edata.pop('e')
+            ee = graph.edata.pop('ee')
+            
+            if res_attn is not None:
+                efm = self.fm(torch.cat([ee,e],axis=1).flatten(1)).unsqueeze(2)
+                e = self.leaky_relu((e+ee)+efm)
+            else:
+                e = self.leaky_relu((e+ee))
+                
             # compute softmax
             graph.edata['a'] = self.attn_drop(edge_softmax(graph, e))
             if res_attn is not None:
