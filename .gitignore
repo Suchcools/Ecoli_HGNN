@@ -16,3 +16,6 @@
 *.npy
 *.test
 *.bin
+*.json
+*.pyc
+*.fasta

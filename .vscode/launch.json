@@ -8,7 +8,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "cwd": "${workspaceFolder}/methods/baseline",
+            "cwd": "${workspaceFolder}/methods/baseline_lp",
             "args": ["--dataset", "ERM_ELP"]
         }
     ]
