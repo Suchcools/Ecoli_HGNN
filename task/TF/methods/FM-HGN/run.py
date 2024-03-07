@@ -177,7 +177,7 @@ def run_model(args):
             y_true = dl.labels_test['data'][dl.labels_test['mask']].argmax(axis=1)
             prob = test_logits.cpu().numpy()
             y_pred = np.argmax(prob, axis=1)
-            np.savez(f"../../output/cv/{args.name}.npz", label=y_true, prob=prob)
+            np.savez(f"../../output/ablation/{args.name}.npz", label=y_true, prob=prob)
             
             # Calculate the classification report
             report = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     ap.add_argument('--dataset', type=str, default="ERM_E")
     ap.add_argument('--edge-feats', type=int, default=64)
     ap.add_argument('--run', type=int, default=1)
-    ap.add_argument('--name', type=str, default=f"05")
+    ap.add_argument('--name', type=str, default=f"no fm")
     
     args = ap.parse_args()
     os.makedirs('checkpoint', exist_ok=True)

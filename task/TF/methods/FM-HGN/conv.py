@@ -137,6 +137,10 @@ class myGATConv(nn.Module):
             e_feat = e_feat + e_type
             
             e_feat = self.fc_e(e_feat).view(-1, self._num_heads, self._edge_feats)
+            
+            # remove edge attention
+            # e_feat = torch.zeros_like(e_feat)
+            
             ee = (e_feat * self.attn_e).sum(dim=-1).unsqueeze(-1)
             el = (feat_src * self.attn_l).sum(dim=-1).unsqueeze(-1)
             er = (feat_dst * self.attn_r).sum(dim=-1).unsqueeze(-1)
@@ -154,7 +158,7 @@ class myGATConv(nn.Module):
                 e = self.leaky_relu((e+ee)+efm)
             else:
                 e = self.leaky_relu((e+ee))
-                
+            
             # compute softmax
             graph.edata['a'] = self.attn_drop(edge_softmax(graph, e))
             if res_attn is not None:
