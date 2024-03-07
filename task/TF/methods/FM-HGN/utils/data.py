@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.sparse as sp
-seed = 42 
+seed = 5 
 np.random.seed(seed)
 
 import os
@@ -339,8 +339,6 @@ def load_data(prefix='ERM'):
     test_idx = np.nonzero(dl.labels_test['mask'])[0]
     labels[train_idx] = dl.labels_train['data'][train_idx]
     labels[val_idx] = dl.labels_train['data'][val_idx]
-    if prefix != 'IMDB':
-        labels = labels.argmax(axis=1)
     train_val_test_idx = {}
     train_val_test_idx['train_idx'] = train_idx
     train_val_test_idx['val_idx'] = val_idx

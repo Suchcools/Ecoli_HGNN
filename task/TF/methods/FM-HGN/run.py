@@ -131,7 +131,7 @@ def run_model(args):
             logits = net(features_list, e_feat, e_type)
             logp = F.log_softmax(logits, 1)
             # train_loss = F.nll_loss(logp[train_idx], labels[train_idx])
-            train_loss = F.cross_entropy(logp[train_idx], labels[train_idx], weight=torch.tensor([1.0, args.weight]).cuda())
+            train_loss = F.cross_entropy(logp[train_idx], labels[train_idx].argmax(axis=1), weight=torch.tensor([1.0, args.weight]).cuda())
             # train_loss = FocalLoss()(logp[train_idx], labels[train_idx])
             # train_loss = DSCLoss()(logp[train_idx], labels[train_idx])
             
@@ -151,7 +151,7 @@ def run_model(args):
             with torch.no_grad():
                 logits = net(features_list, e_feat, e_type)
                 logp = F.log_softmax(logits, 1)
-                val_loss = F.nll_loss(logp[val_idx], labels[val_idx])
+                val_loss = F.nll_loss(logp[val_idx], labels[val_idx].argmax(axis=1))
             t_end = time.time()
             # print validation info
             print('Epoch {:05d} | Val_Loss {:.4f} | Time(s) {:.4f}'.format(
@@ -177,7 +177,7 @@ def run_model(args):
             y_true = dl.labels_test['data'][dl.labels_test['mask']].argmax(axis=1)
             prob = test_logits.cpu().numpy()
             y_pred = np.argmax(prob, axis=1)
-            np.savez(f"../../output/baseline/{args.name}.npz", label=y_true, prob=prob)
+            np.savez(f"../../output/cv/{args.name}.npz", label=y_true, prob=prob)
             
             # Calculate the classification report
             report = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     ap.add_argument('--dataset', type=str, default="ERM_E")
     ap.add_argument('--edge-feats', type=int, default=64)
     ap.add_argument('--run', type=int, default=1)
-    ap.add_argument('--name', type=str, default=f"compare")
+    ap.add_argument('--name', type=str, default=f"05")
     
     args = ap.parse_args()
     os.makedirs('checkpoint', exist_ok=True)
