@@ -94,7 +94,7 @@ def run_model(args):
 
             logits = net(features_list)
             logp = F.log_softmax(logits, 1)
-            train_loss = F.cross_entropy(logp[train_idx], labels[train_idx], weight=torch.tensor([1.0, args.weight]).cuda())
+            train_loss = F.cross_entropy(logp[train_idx], labels[train_idx].argmax(axis=1), weight=torch.tensor([1.0, args.weight]).cuda())
 
             # autograd
             optimizer.zero_grad()
@@ -112,7 +112,7 @@ def run_model(args):
             with torch.no_grad():
                 logits = net(features_list)
                 logp = F.log_softmax(logits, 1)
-                val_loss = F.nll_loss(logp[val_idx], labels[val_idx])
+                val_loss = F.nll_loss(logp[val_idx], labels[val_idx].argmax(axis=1))
             t_end = time.time()
             # print validation info
             print('Epoch {:05d} | Val_Loss {:.4f} | Time(s) {:.4f}'.format(
@@ -143,7 +143,7 @@ def run_model(args):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='MRGNN testing for the DBLP dataset')
-    ap.add_argument('--feats-type', type=int, default=2,
+    ap.add_argument('--feats-type', type=int, default=3,
                     help='Type of the node features used. ' +
                          '0 - loaded features; ' +
                          '1 - only target node features (zero vec for others); ' +
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     ap.add_argument('--epoch', type=int, default=300, help='Number of epochs.')
     ap.add_argument('--patience', type=int, default=30, help='Patience.')
     ap.add_argument('--repeat', type=int, default=1, help='Repeat the training and testing for N times. Default is 1.')
-    ap.add_argument('--model-type', type=str, help="gcn or gat")
+    ap.add_argument('--model-type', type=str, default="gat", help="gcn or gat")
     ap.add_argument('--num-layers', type=int, default=2)
     ap.add_argument('--lr', type=float, default=5e-4)
     ap.add_argument('--dropout', type=float, default=0.1)

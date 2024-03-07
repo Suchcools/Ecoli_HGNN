@@ -4,7 +4,6 @@
 
 ```
 python run.py --dataset ERM --model-type gat --feats-type 2
-python run.py --dataset ERM --model-type gcn --weight-decay 1e-6 --lr 1e-3 --feats-type=0
 ```
 
 ## running environment
