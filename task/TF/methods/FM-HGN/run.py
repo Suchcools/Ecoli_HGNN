@@ -112,7 +112,14 @@ def run_model(args):
         e_type.append(type2emb[(u,v)])
     e_feat = torch.tensor(e_feat, dtype=torch.long).to(device)
     e_type = torch.tensor(e_type, dtype=torch.long).to(device)
-
+    
+    # Lists to store epoch data
+    train_losses = []
+    train_accuracies = []
+    val_losses = []
+    val_accuracies = []
+    times = []
+    
     for _ in range(args.repeat):
         num_classes = dl.labels_train['num_classes']
         heads = [args.num_heads] * args.num_layers + [1]
@@ -141,9 +148,20 @@ def run_model(args):
             optimizer.step()
 
             t_end = time.time()
+            
+            # Calculate training accuracy
+            train_pred = logp[train_idx].argmax(dim=1)
+            train_correct = train_pred.eq(labels[train_idx].argmax(axis=1)).sum().item()
+            train_accuracy = train_correct / len(train_idx)
 
+            # Record training info
+            train_losses.append(train_loss.item())
+            train_accuracies.append(train_accuracy)
+            times.append(t_end-t_start)
+            
             # print training info
-            print('Epoch {:05d} | Train_Loss: {:.4f} | Time: {:.4f}'.format(epoch, train_loss.item(), t_end-t_start))
+            print('Epoch {:05d} | Train_Loss: {:.4f} | Train_Acc: {:.4f} | Time: {:.4f}'.format(epoch, train_loss.item(), train_accuracy, t_end-t_start))
+
 
             t_start = time.time()
             # validation
@@ -152,15 +170,32 @@ def run_model(args):
                 logits = net(features_list, e_feat, e_type)
                 logp = F.log_softmax(logits, 1)
                 val_loss = F.nll_loss(logp[val_idx], labels[val_idx].argmax(axis=1))
+
+                # Calculate validation accuracy
+                val_pred = logp[val_idx].argmax(dim=1)
+                val_correct = val_pred.eq(labels[val_idx].argmax(axis=1)).sum().item()
+                val_accuracy = val_correct / len(val_idx)
             t_end = time.time()
+            
+            # Record validation info
+            val_losses.append(val_loss.item())
+            val_accuracies.append(val_accuracy)
+
             # print validation info
-            print('Epoch {:05d} | Val_Loss {:.4f} | Time(s) {:.4f}'.format(
-                epoch, val_loss.item(), t_end - t_start))
+            print('Epoch {:05d} | Val_Loss {:.4f} | Val_Acc: {:.4f} | Time(s) {:.4f}'.format(epoch, val_loss.item(), val_accuracy, t_end - t_start))
             # early stopping
             early_stopping(val_loss, net)
             if early_stopping.early_stop:
                 print('Early stopping!')
                 break
+            
+        # Save all epoch data to an npz file after training is complete
+        np.savez(f"../../output/{args.name}_info.npz", 
+                train_losses=np.array(train_losses), 
+                train_accuracies=np.array(train_accuracies), 
+                val_losses=np.array(val_losses), 
+                val_accuracies=np.array(val_accuracies), 
+                times=np.array(times))
 
         # testing with evaluate_results_nc
         net.load_state_dict(torch.load('checkpoint/checkpoint_{}_{}.pt'.format(args.dataset, args.num_layers)))
@@ -177,7 +212,7 @@ def run_model(args):
             y_true = dl.labels_test['data'][dl.labels_test['mask']].argmax(axis=1)
             prob = test_logits.cpu().numpy()
             y_pred = np.argmax(prob, axis=1)
-            np.savez(f"../../output/ablation/{args.name}.npz", label=y_true, prob=prob)
+            np.savez(f"../../output/{args.name}.npz", label=y_true, prob=prob)
             
             # Calculate the classification report
             report = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
@@ -212,7 +247,7 @@ if __name__ == '__main__':
     ap.add_argument('--dataset', type=str, default="ERM_E")
     ap.add_argument('--edge-feats', type=int, default=64)
     ap.add_argument('--run', type=int, default=1)
-    ap.add_argument('--name', type=str, default=f"no fm")
+    ap.add_argument('--name', type=str, default=f"plotloss")
     
     args = ap.parse_args()
     os.makedirs('checkpoint', exist_ok=True)

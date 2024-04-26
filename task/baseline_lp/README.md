@@ -1,6 +1,3 @@
-# Simple-HGN for HGB
-
-
 ```
 python run_new.py --dataset ERM_LP
 ```

@@ -121,6 +121,11 @@ def run_model_DBLP(args):
         net.to(device)
         optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
+
+        # Lists to store losses
+        train_losses = []
+        val_losses = []
+
         # training loop
         net.train()
         early_stopping = EarlyStopping(patience=args.patience, verbose=True, save_path='checkpoint/checkpoint_{}_{}.pt'.format(args.dataset, args.num_layers))
@@ -157,7 +162,7 @@ def run_model_DBLP(args):
             optimizer.step()
 
             t_end = time.time()
-
+            train_losses.append(train_loss.item())  # Save training loss
             # print training info
             print('Epoch {:05d}, Step{:05d} | Train_Loss: {:.4f} | Time: {:.4f}'.format(epoch, step, train_loss.item(), t_end-t_start))
 
@@ -179,6 +184,7 @@ def run_model_DBLP(args):
                 val_loss = loss_func(logp, labels)
             t_end = time.time()
             # print validation info
+            val_losses.append(val_loss.item())
             print('Epoch {:05d} | Val_Loss {:.4f} | Time(s) {:.4f}'.format(
                 epoch, val_loss.item(), t_end - t_start))
             # early stopping
@@ -189,7 +195,7 @@ def run_model_DBLP(args):
           if early_stopping.early_stop:
               print('Early stopping!')
               break
-
+        np.savez('save/training_validation_losses.npz', train_losses=np.array(train_losses), val_losses=np.array(val_losses))
         # testing with evaluate_results_nc
         net.load_state_dict(torch.load('checkpoint/checkpoint_{}_{}.pt'.format(args.dataset, args.num_layers)))
         net.eval()
@@ -220,7 +226,7 @@ def run_model_DBLP(args):
             dl.gen_file_for_evaluate(test_neigh, pred, test_edge_type, file_path=f"{args.dataset}_{args.run}.txt", flag=first_flag)
             first_flag = False
             res = dl.evaluate(edge_list, pred, labels)
-            np.savez("save/label_hop.npz",edge_list=edge_list, pred=pred, labels=labels)
+            np.savez("save/label_hop1.npz",edge_list=edge_list, pred=pred, labels=labels)
             print(res)
             for k in res:
                 res_2hop[k] += res[k]
@@ -239,7 +245,7 @@ def run_model_DBLP(args):
             labels = labels.cpu().numpy()
             res = dl.evaluate(edge_list, pred, labels)
             print(res)
-            np.savez("save/label_random.npz",edge_list=edge_list, pred=pred, labels=labels)
+            np.savez("save/label_random1.npz",edge_list=edge_list, pred=pred, labels=labels)
             for k in res:
                 res_random[k] += res[k]
     for k in res_2hop:
@@ -261,7 +267,7 @@ if __name__ == '__main__':
                         '5 - only term features (zero vec for others).')
     ap.add_argument('--hidden-dim', type=int, default=64, help='Dimension of the node hidden state. Default is 64.')
     ap.add_argument('--num-heads', type=int, default=2, help='Number of the attention heads. Default is 8.')
-    ap.add_argument('--epoch', type=int, default=40, help='Number of epochs.')
+    ap.add_argument('--epoch', type=int, default=300, help='Number of epochs.')
     ap.add_argument('--patience', type=int, default=40, help='Patience.')
     ap.add_argument('--num-layers', type=int, default=3)
     ap.add_argument('--lr', type=float, default=5e-4)
