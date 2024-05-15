@@ -129,12 +129,11 @@ def run_model(args):
 
         # training loop
         net.train()
-        early_stopping = EarlyStopping(patience=args.patience, verbose=True, save_path='checkpoint/checkpoint_{}_{}.pt'.format(args.dataset, args.num_layers))
+        early_stopping = EarlyStopping(patience=args.patience, verbose=True, save_path='checkpoint/checkpoint_{}_{}.pt'.format(args.dataset.replace("/",""), args.num_layers))
         for epoch in range(args.epoch):
             t_start = time.time()
             # training
             net.train()
-
             logits = net(features_list, e_feat, e_type)
             logp = F.log_softmax(logits, 1)
             # train_loss = F.nll_loss(logp[train_idx], labels[train_idx])
@@ -198,7 +197,7 @@ def run_model(args):
                 times=np.array(times))
 
         # testing with evaluate_results_nc
-        net.load_state_dict(torch.load('checkpoint/checkpoint_{}_{}.pt'.format(args.dataset, args.num_layers)))
+        net.load_state_dict(torch.load('checkpoint/checkpoint_{}_{}.pt'.format(args.dataset.replace("/",""), args.num_layers)))
         net.eval()
         test_logits = []
         with torch.no_grad():
@@ -206,13 +205,16 @@ def run_model(args):
             test_logits = logits[test_idx]
             pred = test_logits.cpu().numpy().argmax(axis=1)
             onehot = np.eye(num_classes, dtype=np.int32)
-            dl.gen_file_for_evaluate(test_idx=test_idx, label=pred, file_name=f"output/{args.dataset}_{args.run}.txt")
+            # dl.gen_file_for_evaluate(test_idx=test_idx, label=pred, file_name=f"output/{args.dataset.replace("/","")}_{args.run}.txt")
+            dl.gen_file_for_evaluate(test_idx=test_idx, label=pred, file_name=f"output/1.txt")
             pred = onehot[pred]
             print(dl.evaluate(pred))
             y_true = dl.labels_test['data'][dl.labels_test['mask']].argmax(axis=1)
             prob = test_logits.cpu().numpy()
             y_pred = np.argmax(prob, axis=1)
-            np.savez(f"../../output/{args.name}.npz", label=y_true, prob=prob)
+            save_path = int(args.dataset.split("/")[-1])
+            np.savez(f"../../output/instance/{save_path}.npz", label=y_true, prob=prob)
+        
             
             # Calculate the classification report
             report = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
@@ -223,9 +225,8 @@ def run_model(args):
             print(conf_matrix)
 
 if __name__ == '__main__':
-    feats= 1
-    ap = argparse.ArgumentParser(description='MRGNN testing for the DBLP dataset')
-    ap.add_argument('--feats-type', type=int, default=feats,
+    ap = argparse.ArgumentParser(description='FM-HGN testing for the ERMer dataset')
+    ap.add_argument('--feats-type', type=int, default=2,
                     help='Type of the node features used. ' +
                         '0 - loaded features; ' +
                         '1 - only target node features (zero vec for others); ' +
@@ -244,10 +245,10 @@ if __name__ == '__main__':
     ap.add_argument('--weight-decay', type=float, default=1e-4)
     ap.add_argument('--weight', type=float, default=5)
     ap.add_argument('--slope', type=float, default=0.05)
-    ap.add_argument('--dataset', type=str, default="ERM_E")
+    ap.add_argument('--dataset', type=str, default="INS/1")
     ap.add_argument('--edge-feats', type=int, default=64)
     ap.add_argument('--run', type=int, default=1)
-    ap.add_argument('--name', type=str, default=f"plotloss")
+    ap.add_argument('--name', type=str, default=f"1")
     
     args = ap.parse_args()
     os.makedirs('checkpoint', exist_ok=True)
